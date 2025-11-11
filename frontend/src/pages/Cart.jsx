@@ -7,8 +7,8 @@ import CartTotal from "../components/CartTotal";
 const Cart = () => {
   const { products, currency, cartItems, updateQuantity, navigate } =
     useContext(ShopContext);
-
   const [cartData, setCartData] = useState([]);
+
   useEffect(() => {
     const tempData = [];
     for (const items in cartItems) {
@@ -24,9 +24,10 @@ const Cart = () => {
     }
     setCartData(tempData);
   }, [cartItems]);
+
   return (
     <div className="border-t pt-14">
-      <div className="text2xl mb-3">
+      <div className="text-2xl mb-3">
         <Title text1={"YOUR"} text2={"CART"} />
       </div>
       <div>
@@ -37,14 +38,13 @@ const Cart = () => {
           return (
             <div
               key={index}
-              className="py-4 border-t border-b text-gray-700 grid grid-cols-[4fr_0.5fr_0.5fr] sm:grid-cols-[4fr_2fr_0.5fr] items-center gap-4
-"
+              className="py-4 border-t border-b text-gray-700 grid grid-cols-[4fr_0.5fr_0.5fr] sm:grid-cols-[4fr_2fr_0.5fr] items-center gap-4"
             >
               <div className="flex items-start gap-6">
                 <img
                   src={productData.image[0]}
                   alt=""
-                  className="w-167 sm:w-20"
+                  className="w-16 sm:w-20"
                 />
                 <div>
                   <p className="text-xs sm:text-lg font-medium">
@@ -65,7 +65,7 @@ const Cart = () => {
                 type="number"
                 min={1}
                 defaultValue={item.quantity}
-                className="border max-w10 sm:max-w-20 px-1 sm:px-2 py-1"
+                className="border max-w-10 sm:max-w-20 px-1 sm:px-2 py-1"
                 onChange={(e) =>
                   e.target.value === "" || e.target.value === "0"
                     ? null
@@ -87,7 +87,7 @@ const Cart = () => {
         })}
       </div>
       <div className="flex justify-end my-20">
-        <div className="w-fill sm:w-[450px]">
+        <div className="w-full sm:w-[450px]">
           <CartTotal />
           <div className="w-full text-end">
             <button
@@ -95,7 +95,7 @@ const Cart = () => {
               onClick={() => navigate("/place-order")}
             >
               PROCEED TO CHECKOUT
-            </button>navigate
+            </button>
           </div>
         </div>
       </div>
