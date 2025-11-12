@@ -1,76 +1,111 @@
 import { ShopContext } from "./ShopContext.jsx";
-import { products } from "../assets/frontend_assets/assets";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 const ShopContextProvider = ({ children }) => {
   const currency = "$";
   const delivery_fee = 10;
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [cartItems, setCartItems] = useState({});
+  const [products, setProducts] = useState([]);
   const navigate = useNavigate();
 
+  console.log("backendUrl:", backendUrl);
+
+  // -------------------------
+  // 🛒 Add to cart
+  // -------------------------
   const addToCart = (itemId, size) => {
     if (!size) {
-      toast.error("Select product size");
-    } // prevent undefined key
+      toast.error("Select product size first");
+      return;
+    }
 
     setCartItems((prev) => {
       const cartData = structuredClone(prev);
-
       if (!cartData[itemId]) cartData[itemId] = {};
       if (cartData[itemId][size]) {
         cartData[itemId][size] += 1;
       } else {
         cartData[itemId][size] = 1;
       }
-
       return cartData;
     });
+
+    toast.success("Added to cart");
   };
 
+  // -------------------------
+  // 🧮 Total item count
+  // -------------------------
   const getCartCount = () => {
     let totalCount = 0;
-    for (const items in cartItems) {
-      for (const item in cartItems[items]) {
-        try {
-          if (cartItems[items][item] > 0) {
-            totalCount += cartItems[items][item];
-          }
-        } catch (error) {
-          console.log(error);
-        }
+    for (const productId in cartItems) {
+      for (const size in cartItems[productId]) {
+        const count = cartItems[productId][size];
+        if (count > 0) totalCount += count;
       }
     }
     return totalCount;
   };
 
-  const updateQuantity = async (itemId, size, quantity) => {
-    let cartData = structuredClone(cartItems);
+  // -------------------------
+  // 🔄 Update cart quantity
+  // -------------------------
+  const updateQuantity = (itemId, size, quantity) => {
+    const cartData = structuredClone(cartItems);
+    if (!cartData[itemId]) return;
     cartData[itemId][size] = quantity;
-
     setCartItems(cartData);
   };
 
+  // -------------------------
+  // 💰 Calculate total amount
+  // -------------------------
   const getCartAmount = () => {
-    let totalAmount = 0;
-    for (const itemId in cartItems) {
-      const itemInfo = products.find((product) => product._id === itemId);
-      if (!itemInfo) continue;
+    let total = 0;
+    for (const id in cartItems) {
+      const product = products.find((p) => p._id === id);
+      if (!product) continue;
 
-      for (const variant in cartItems[itemId]) {
-        const quantity = cartItems[itemId][variant];
-        if (quantity > 0) {
-          totalAmount += itemInfo.price * quantity;
-        }
+      for (const size in cartItems[id]) {
+        const qty = cartItems[id][size];
+        if (qty > 0) total += product.price * qty;
       }
     }
-    return totalAmount;
+    return total;
   };
 
+  // -------------------------
+  // 🛍️ Fetch products
+  // -------------------------
+  const getProductsData = async () => {
+    try {
+      const res = await axios.get(`${backendUrl}/api/product/list`);
+      if (res.data.success) {
+        setProducts(res.data.products);
+      } else {
+        toast.error(res.data.message || "Failed to fetch products");
+      }
+    } catch (error) {
+      console.error("Error fetching products:", error.message);
+      toast.error("Could not load products");
+    }
+  };
+
+  // Fetch products on mount
+  useEffect(() => {
+    getProductsData();
+  }, []);
+
+  // -------------------------
+  // 🧠 Context value
+  // -------------------------
   const value = {
     products,
     currency,
@@ -84,7 +119,8 @@ const ShopContextProvider = ({ children }) => {
     getCartCount,
     updateQuantity,
     getCartAmount,
-    navigate
+    navigate,
+    backendUrl,
   };
 
   return <ShopContext.Provider value={value}>{children}</ShopContext.Provider>;
