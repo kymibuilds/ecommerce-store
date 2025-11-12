@@ -1,7 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import { jwtDecode } from "jwt-decode";
+import { ShopContext } from "../context/ShopContext";
 
-// Mock Title component
+// Title component
 const Title = ({ text1, text2 }) => (
   <div className="inline-flex gap-2 items-center mb-3">
     <p className="text-gray-500">
@@ -10,7 +13,7 @@ const Title = ({ text1, text2 }) => (
   </div>
 );
 
-// Mock CartTotal component
+// CartTotal component
 const CartTotal = () => (
   <div className="w-full">
     <div className="text-2xl mb-4">
@@ -36,8 +39,70 @@ const CartTotal = () => (
 );
 
 const PlaceOrder = () => {
+  const { backendUrl, token, getCartAmount, delivery_fee, cartItems } =
+    useContext(ShopContext);
+
   const [paymentMethod, setPaymentMethod] = useState("");
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    street: "",
+    city: "",
+    state: "",
+    zipcode: "",
+    country: "",
+    phone: "",
+  });
+
   const navigate = useNavigate();
+
+  const onChangeHandler = (event) => {
+    const { name, value } = event.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const placeOrderHandler = async () => {
+    if (!paymentMethod) return alert("Select a payment method first.");
+    if (!token) return alert("Please log in to place an order.");
+
+    try {
+      const totalAmount = getCartAmount() + delivery_fee;
+      const decoded = jwtDecode(token);
+      const userId = decoded.id || decoded._id;
+
+      // Map payment methods to backend routes
+      const routeMap = {
+        cod: "place",
+        stripe: "stripe",
+        razorpay: "razorpay",
+      };
+
+      const endpoint = `${backendUrl}/api/order/${routeMap[paymentMethod]}`;
+
+      const response = await axios.post(
+        endpoint,
+        {
+          userId,
+          items: cartItems,
+          amount: totalAmount,
+          address: formData,
+          paymentMethod,
+        },
+        { headers: { token } }
+      );
+
+      if (response.data.success) {
+        alert("Order placed successfully!");
+        navigate("/orders");
+      } else {
+        alert(response.data.msg || "Order failed. Try again.");
+      }
+    } catch (err) {
+      console.error("Error placing order:", err);
+      alert("Error placing order. Please try again.");
+    }
+  };
 
   return (
     <div className="flex flex-col sm:flex-row justify-between gap-4 pt-5 sm:pt-14 min-h-[80vh] border-t px-4 sm:px-8">
@@ -49,52 +114,79 @@ const PlaceOrder = () => {
         <div className="flex gap-3">
           <input
             type="text"
+            name="firstName"
             placeholder="First Name"
+            value={formData.firstName}
+            onChange={onChangeHandler}
             className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
           />
           <input
             type="text"
+            name="lastName"
             placeholder="Last Name"
+            value={formData.lastName}
+            onChange={onChangeHandler}
             className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
           />
         </div>
         <input
           type="email"
+          name="email"
           placeholder="Email Address"
+          value={formData.email}
+          onChange={onChangeHandler}
           className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
         />
         <input
           type="text"
+          name="street"
           placeholder="Street"
+          value={formData.street}
+          onChange={onChangeHandler}
           className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
         />
         <div className="flex gap-3">
           <input
             type="text"
+            name="city"
             placeholder="City"
+            value={formData.city}
+            onChange={onChangeHandler}
             className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
           />
           <input
             type="text"
+            name="state"
             placeholder="State"
+            value={formData.state}
+            onChange={onChangeHandler}
             className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
           />
         </div>
         <div className="flex gap-3">
           <input
             type="number"
+            name="zipcode"
             placeholder="Zip Code"
+            value={formData.zipcode}
+            onChange={onChangeHandler}
             className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
           />
           <input
             type="text"
+            name="country"
             placeholder="Country"
+            value={formData.country}
+            onChange={onChangeHandler}
             className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
           />
         </div>
         <input
           type="number"
+          name="phone"
           placeholder="Phone"
+          value={formData.phone}
+          onChange={onChangeHandler}
           className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
         />
       </div>
@@ -110,53 +202,30 @@ const PlaceOrder = () => {
 
           {/* Payment method selection */}
           <div className="flex gap-3 flex-col lg:flex-row mt-5">
-            <div
-              onClick={() => setPaymentMethod("stripe")}
-              className="flex items-center gap-3 border p-2 px-3 cursor-pointer hover:border-green-500 transition-colors"
-            >
-              <p
-                className={`min-w-3.5 h-3.5 border rounded-full ${
-                  paymentMethod === "stripe" ? "bg-green-500" : ""
+            {["stripe", "razorpay", "cod"].map((method) => (
+              <div
+                key={method}
+                onClick={() => setPaymentMethod(method)}
+                className={`flex items-center gap-3 border p-2 px-3 cursor-pointer transition-colors ${
+                  paymentMethod === method ? "border-green-500" : ""
                 }`}
-              ></p>
-              <div className="h-5 mx-4 flex items-center text-sm font-medium text-gray-700">
-                STRIPE
+              >
+                <p
+                  className={`min-w-3.5 h-3.5 border rounded-full ${
+                    paymentMethod === method ? "bg-green-500" : ""
+                  }`}
+                ></p>
+                <p className="text-sm font-medium text-gray-700">
+                  {method === "cod" ? "CASH ON DELIVERY" : method.toUpperCase()}
+                </p>
               </div>
-            </div>
-
-            <div
-              onClick={() => setPaymentMethod("razorpay")}
-              className="flex items-center gap-3 border p-2 px-3 cursor-pointer hover:border-green-500 transition-colors"
-            >
-              <p
-                className={`min-w-3.5 h-3.5 border rounded-full ${
-                  paymentMethod === "razorpay" ? "bg-green-500" : ""
-                }`}
-              ></p>
-              <div className="h-5 mx-4 flex items-center text-sm font-medium text-gray-700">
-                RAZORPAY
-              </div>
-            </div>
-
-            <div
-              onClick={() => setPaymentMethod("cod")}
-              className="flex items-center gap-3 border p-2 px-3 cursor-pointer hover:border-green-500 transition-colors"
-            >
-              <p
-                className={`min-w-3.5 h-3.5 border rounded-full ${
-                  paymentMethod === "cod" ? "bg-green-500" : ""
-                }`}
-              ></p>
-              <p className="text-gray-500 text-sm font-medium mx-4">
-                CASH ON DELIVERY
-              </p>
-            </div>
+            ))}
           </div>
 
           <div className="w-full text-end mt-8">
             <button
               className="bg-black text-white px-16 py-3 text-sm hover:bg-gray-800 transition-colors"
-              onClick={() => navigate("/orders")}
+              onClick={placeOrderHandler}
             >
               PLACE ORDER
             </button>
