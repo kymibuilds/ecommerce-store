@@ -36,9 +36,7 @@ function Orders() {
 
       if (response.data.success) {
         setOrders((prev) =>
-          prev.map((o) =>
-            o._id === orderId ? { ...o, status: newStatus } : o
-          )
+          prev.map((o) => (o._id === orderId ? { ...o, status: newStatus } : o))
         );
       } else {
         alert(response.data.msg || "Failed to update status");

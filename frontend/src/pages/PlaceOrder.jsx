@@ -63,46 +63,56 @@ const PlaceOrder = () => {
   };
 
   const placeOrderHandler = async () => {
-    if (!paymentMethod) return alert("Select a payment method first.");
-    if (!token) return alert("Please log in to place an order.");
+  if (!paymentMethod) return alert("Select a payment method first.");
+  if (!token) return alert("Please log in to place an order.");
 
-    try {
-      const totalAmount = getCartAmount() + delivery_fee;
-      const decoded = jwtDecode(token);
-      const userId = decoded.id || decoded._id;
+  try {
+    const totalAmount = getCartAmount() + delivery_fee;
+    const decoded = jwtDecode(token);
+    const userId = decoded.id || decoded._id;
 
-      // Map payment methods to backend routes
-      const routeMap = {
-        cod: "place",
-        stripe: "stripe",
-        razorpay: "razorpay",
-      };
+    const routeMap = {
+      cod: "place",
+      stripe: "stripe",
+      razorpay: "razorpay",
+    };
 
-      const endpoint = `${backendUrl}/api/order/${routeMap[paymentMethod]}`;
+    const endpoint = `${backendUrl}/api/order/${routeMap[paymentMethod]}`;
 
-      const response = await axios.post(
-        endpoint,
-        {
-          userId,
-          items: cartItems,
-          amount: totalAmount,
-          address: formData,
-          paymentMethod,
-        },
-        { headers: { token } }
-      );
+    const response = await axios.post(
+      endpoint,
+      {
+        userId,
+        items: cartItems,
+        amount: totalAmount,
+        address: formData,
+        paymentMethod,
+      },
+      { headers: { token } }
+    );
 
-      if (response.data.success) {
-        alert("Order placed successfully!");
-        navigate("/orders");
-      } else {
-        alert(response.data.msg || "Order failed. Try again.");
+    // STRIPE REDIRECT
+    if (paymentMethod === "stripe") {
+      if (response.data.success && response.data.session_url) {
+        window.location.href = response.data.session_url;
+        return;
       }
-    } catch (err) {
-      console.error("Error placing order:", err);
-      alert("Error placing order. Please try again.");
+      alert(response.data.msg || "Stripe session failed.");
+      return;
     }
-  };
+
+    // COD & Razorpay
+    if (response.data.success) {
+      alert("Order placed successfully!");
+      navigate("/orders");
+    } else {
+      alert(response.data.msg || "Order failed. Try again.");
+    }
+  } catch (err) {
+    console.error("Error placing order:", err);
+    alert("Error placing order. Please try again.");
+  }
+};
 
   return (
     <div className="flex flex-col sm:flex-row justify-between gap-4 pt-5 sm:pt-14 min-h-[80vh] border-t px-4 sm:px-8">
