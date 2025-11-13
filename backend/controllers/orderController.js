@@ -40,7 +40,13 @@ export const placeOrderRazorpay = async (req, res) => {
 
 // all orders data for admin
 export const allOrders = async (req, res) => {
-  res.json({ success: true, msg: "All orders route working" });
+  try {
+    const orders = await orderModel.find({});
+    res.json({ success: true, orders });
+  } catch (error) {
+    console.error(error);
+    res.json({ success: false, msg: error.message });
+  }
 };
 
 // user orders data for frontend
@@ -58,5 +64,22 @@ export const userOrders = async (req, res) => {
 
 // update order status
 export const updateStatus = async (req, res) => {
-  res.json({ success: true, msg: "Update status route working" });
+  try {
+    const { orderId, status } = req.body;
+
+    if (!orderId || !status) {
+      return res.json({ success: false, msg: "Order ID and status are required." });
+    }
+
+    const order = await orderModel.findByIdAndUpdate(orderId, { status }, { new: true });
+
+    if (!order) {
+      return res.json({ success: false, msg: "Order not found." });
+    }
+
+    res.json({ success: true, msg: "Order status updated successfully.", order });
+  } catch (error) {
+    console.error(error);
+    res.json({ success: false, msg: error.message });
+  }
 };
