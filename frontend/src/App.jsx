@@ -13,6 +13,8 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import SearchBar from "./components/SearchBar";
 import { ToastContainer } from "react-toastify";
+import PaymentSuccess from "./pages/PaymentSuccess";
+import PaymentFailed from "./pages/PaymentFailed";
 
 function App() {
   return (
@@ -30,6 +32,8 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/place-order" element={<PlaceOrder />} />
         <Route path="/orders" element={<Orders />} />
+        <Route path="/payment-success" element={<PaymentSuccess />} />
+        <Route path="/payment-failed" element={<PaymentFailed />} />
       </Routes>
       <Footer />
     </div>

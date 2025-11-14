@@ -18,15 +18,6 @@ const ShopContextProvider = ({ children }) => {
 
   const navigate = useNavigate();
 
-  // 🐛 DEBUG: Monitor token changes
-  useEffect(() => {
-    console.log("🔑 Token state changed:", token);
-    console.log("💾 localStorage token:", localStorage.getItem("token"));
-  }, [token]);
-
-  // -------------------------
-  // 🛍️ Fetch products
-  // -------------------------
   const getProductsData = async () => {
     try {
       const res = await axios.get(`${backendUrl}/api/product/list`);

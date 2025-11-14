@@ -2,19 +2,19 @@ import orderModel from "../models/orderModel.js";
 import userModel from "../models/userModel.js";
 import Stripe from "stripe";
 
-// global variables
 const currency = "usd";
 const deliveryCharge = 10;
 
-// payment gateway
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-// COD order
+// ======================
+//  CASH ON DELIVERY
+// ======================
 export const placeOrder = async (req, res) => {
   try {
     const { userId, items, amount, address } = req.body;
 
-    const orderData = {
+    const newOrder = await orderModel.create({
       userId,
       items,
       address,
@@ -22,27 +22,25 @@ export const placeOrder = async (req, res) => {
       paymentMethod: "COD",
       payment: false,
       date: Date.now(),
-    };
-
-    const newOrder = new orderModel(orderData);
-    await newOrder.save();
+    });
 
     await userModel.findByIdAndUpdate(userId, { cartData: {} });
 
     res.json({ success: true, msg: "Order placed" });
   } catch (error) {
-    console.error(error);
     res.json({ success: false, msg: error.message });
   }
 };
 
-// STRIPE payment order
+// ======================
+//  STRIPE CHECKOUT
+// ======================
 export const placeOrderStripe = async (req, res) => {
   try {
     const { userId, items, amount, address } = req.body;
     const origin = req.headers.origin;
 
-    const orderData = {
+    const newOrder = await orderModel.create({
       userId,
       items,
       address,
@@ -50,16 +48,13 @@ export const placeOrderStripe = async (req, res) => {
       paymentMethod: "Stripe",
       payment: false,
       date: Date.now(),
-    };
-
-    const newOrder = new orderModel(orderData);
-    await newOrder.save();
+    });
 
     const line_items = items.map((item) => ({
       price_data: {
-        currency: currency,
+        currency,
         product_data: {
-          name: item.name,
+          name: `${item.name} (${item.size})`,
         },
         unit_amount: item.price * 100,
       },
@@ -68,7 +63,7 @@ export const placeOrderStripe = async (req, res) => {
 
     line_items.push({
       price_data: {
-        currency: currency,
+        currency,
         product_data: { name: "Delivery Charges" },
         unit_amount: deliveryCharge * 100,
       },
@@ -85,40 +80,45 @@ export const placeOrderStripe = async (req, res) => {
 
     res.json({ success: true, session_url: session.url });
   } catch (error) {
-    console.error(error);
     res.json({ success: false, msg: error.message });
   }
 };
 
-// Razorpay
+// ======================
+//  RAZORPAY PLACEHOLDER
+// ======================
 export const placeOrderRazorpay = async (req, res) => {
   res.json({ success: true, msg: "Razorpay route working" });
 };
 
-// all orders (admin)
+// ======================
+//  ADMIN – ALL ORDERS
+// ======================
 export const allOrders = async (req, res) => {
   try {
     const orders = await orderModel.find({});
     res.json({ success: true, orders });
   } catch (error) {
-    console.error(error);
     res.json({ success: false, msg: error.message });
   }
 };
 
-// user orders
+// ======================
+//  USER – OWN ORDERS
+// ======================
 export const userOrders = async (req, res) => {
   try {
     const { userId } = req.body;
     const orders = await orderModel.find({ userId });
     res.json({ success: true, orders });
   } catch (error) {
-    console.error(error);
     res.json({ success: false, msg: error.message });
   }
 };
 
-// update order status
+// ======================
+//  UPDATE ORDER STATUS
+// ======================
 export const updateStatus = async (req, res) => {
   try {
     const { orderId, status } = req.body;
@@ -130,23 +130,21 @@ export const updateStatus = async (req, res) => {
       });
     }
 
-    const order = await orderModel.findByIdAndUpdate(
+    const updated = await orderModel.findByIdAndUpdate(
       orderId,
       { status },
       { new: true }
     );
 
-    if (!order) {
+    if (!updated)
       return res.json({ success: false, msg: "Order not found." });
-    }
 
     res.json({
       success: true,
       msg: "Order status updated successfully.",
-      order,
+      order: updated,
     });
   } catch (error) {
-    console.error(error);
     res.json({ success: false, msg: error.message });
   }
 };

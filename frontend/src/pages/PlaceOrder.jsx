@@ -4,7 +4,6 @@ import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 import { ShopContext } from "../context/ShopContext";
 
-// Title component
 const Title = ({ text1, text2 }) => (
   <div className="inline-flex gap-2 items-center mb-3">
     <p className="text-gray-500">
@@ -13,7 +12,6 @@ const Title = ({ text1, text2 }) => (
   </div>
 );
 
-// CartTotal component
 const CartTotal = () => (
   <div className="w-full">
     <div className="text-2xl mb-4">
@@ -39,7 +37,7 @@ const CartTotal = () => (
 );
 
 const PlaceOrder = () => {
-  const { backendUrl, token, getCartAmount, delivery_fee, cartItems } =
+  const { backendUrl, token, getCartAmount, delivery_fee, cartItems, products } =
     useContext(ShopContext);
 
   const [paymentMethod, setPaymentMethod] = useState("");
@@ -63,145 +61,117 @@ const PlaceOrder = () => {
   };
 
   const placeOrderHandler = async () => {
-  if (!paymentMethod) return alert("Select a payment method first.");
-  if (!token) return alert("Please log in to place an order.");
+    if (!paymentMethod) return alert("Select a payment method first.");
+    if (!token) return alert("Please log in to place an order.");
 
-  try {
-    const totalAmount = getCartAmount() + delivery_fee;
-    const decoded = jwtDecode(token);
-    const userId = decoded.id || decoded._id;
+    try {
+      const totalAmount = getCartAmount() + delivery_fee;
+      const decoded = jwtDecode(token);
+      const userId = decoded.id || decoded._id;
 
-    const routeMap = {
-      cod: "place",
-      stripe: "stripe",
-      razorpay: "razorpay",
-    };
+      const orderItems = Object.entries(cartItems).flatMap(
+        ([productId, sizes]) => {
+          const product = products.find((p) => p._id === productId);
+          if (!product) return [];
 
-    const endpoint = `${backendUrl}/api/order/${routeMap[paymentMethod]}`;
+          return Object.entries(sizes).map(([size, qty]) => ({
+            productId,
+            name: product.name,
+            price: product.price,
+            size,
+            quantity: qty,
+          }));
+        }
+      );
 
-    const response = await axios.post(
-      endpoint,
-      {
-        userId,
-        items: cartItems,
-        amount: totalAmount,
-        address: formData,
-        paymentMethod,
-      },
-      { headers: { token } }
-    );
+      const routeMap = {
+        cod: "place",
+        stripe: "stripe",
+        razorpay: "razorpay",
+      };
 
-    // STRIPE REDIRECT
-    if (paymentMethod === "stripe") {
-      if (response.data.success && response.data.session_url) {
-        window.location.href = response.data.session_url;
+      const endpoint = `${backendUrl}/api/order/${routeMap[paymentMethod]}`;
+
+      const response = await axios.post(
+        endpoint,
+        {
+          userId,
+          items: orderItems,
+          amount: totalAmount,
+          address: formData,
+          paymentMethod,
+        },
+        { headers: { token } }
+      );
+
+      if (paymentMethod === "stripe") {
+        if (response.data.success && response.data.session_url) {
+          window.location.href = response.data.session_url;
+          return;
+        }
+        alert(response.data.msg || "Stripe session failed.");
         return;
       }
-      alert(response.data.msg || "Stripe session failed.");
-      return;
-    }
 
-    // COD & Razorpay
-    if (response.data.success) {
-      alert("Order placed successfully!");
-      navigate("/orders");
-    } else {
-      alert(response.data.msg || "Order failed. Try again.");
+      if (response.data.success) {
+        alert("Order placed successfully!");
+        navigate("/orders");
+      } else {
+        alert(response.data.msg || "Order failed. Try again.");
+      }
+    } catch (err) {
+      console.error("Error placing order:", err);
+      alert("Error placing order. Please try again.");
     }
-  } catch (err) {
-    console.error("Error placing order:", err);
-    alert("Error placing order. Please try again.");
-  }
-};
+  };
 
   return (
     <div className="flex flex-col sm:flex-row justify-between gap-4 pt-5 sm:pt-14 min-h-[80vh] border-t px-4 sm:px-8">
-      {/* Left Side */}
       <div className="flex flex-col gap-4 w-full sm:max-w-[480px]">
         <div className="text-xl sm:text-2xl my-3">
           <Title text1={"DELIVERY"} text2={"INFORMATION"} />
         </div>
+
         <div className="flex gap-3">
-          <input
-            type="text"
-            name="firstName"
-            placeholder="First Name"
-            value={formData.firstName}
-            onChange={onChangeHandler}
-            className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-          />
-          <input
-            type="text"
-            name="lastName"
-            placeholder="Last Name"
-            value={formData.lastName}
-            onChange={onChangeHandler}
-            className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-          />
+          <input type="text" name="firstName" placeholder="First Name"
+            value={formData.firstName} onChange={onChangeHandler}
+            className="border border-gray-300 rounded py-1.5 px-3.5 w-full" />
+          <input type="text" name="lastName" placeholder="Last Name"
+            value={formData.lastName} onChange={onChangeHandler}
+            className="border border-gray-300 rounded py-1.5 px-3.5 w-full" />
         </div>
-        <input
-          type="email"
-          name="email"
-          placeholder="Email Address"
-          value={formData.email}
-          onChange={onChangeHandler}
-          className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-        />
-        <input
-          type="text"
-          name="street"
-          placeholder="Street"
-          value={formData.street}
-          onChange={onChangeHandler}
-          className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-        />
+
+        <input type="email" name="email" placeholder="Email Address"
+          value={formData.email} onChange={onChangeHandler}
+          className="border border-gray-300 rounded py-1.5 px-3.5 w-full" />
+
+        <input type="text" name="street" placeholder="Street"
+          value={formData.street} onChange={onChangeHandler}
+          className="border border-gray-300 rounded py-1.5 px-3.5 w-full" />
+
         <div className="flex gap-3">
-          <input
-            type="text"
-            name="city"
-            placeholder="City"
-            value={formData.city}
-            onChange={onChangeHandler}
-            className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-          />
-          <input
-            type="text"
-            name="state"
-            placeholder="State"
-            value={formData.state}
-            onChange={onChangeHandler}
-            className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-          />
+          <input type="text" name="city" placeholder="City"
+            value={formData.city} onChange={onChangeHandler}
+            className="border border-gray-300 rounded py-1.5 px-3.5 w-full" />
+          <input type="text" name="state" placeholder="State"
+            value={formData.state} onChange={onChangeHandler}
+            className="border border-gray-300 rounded py-1.5 px-3.5 w-full" />
         </div>
+
         <div className="flex gap-3">
-          <input
-            type="number"
-            name="zipcode"
-            placeholder="Zip Code"
-            value={formData.zipcode}
-            onChange={onChangeHandler}
-            className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-          />
-          <input
-            type="text"
-            name="country"
-            placeholder="Country"
-            value={formData.country}
-            onChange={onChangeHandler}
-            className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-          />
+          <input type="number" name="zipcode" placeholder="Zip Code"
+            value={formData.zipcode} onChange={onChangeHandler}
+            className="border border-gray-300 rounded py-1.5 px-3.5 w-full" />
+          <input type="text" name="country" placeholder="Country"
+            value={formData.country} onChange={onChangeHandler}
+            className="border border-gray-300 rounded py-1.5 px-3.5 w-full" />
         </div>
-        <input
-          type="number"
-          name="phone"
-          placeholder="Phone"
-          value={formData.phone}
-          onChange={onChangeHandler}
-          className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-        />
+
+        <input type="number" name="phone" placeholder="Phone"
+          value={formData.phone} onChange={onChangeHandler}
+          className="border border-gray-300 rounded py-1.5 px-3.5 w-full" />
       </div>
 
-      {/* Right Side */}
       <div className="mt-8 w-full sm:max-w-[400px]">
         <div className="min-w-80">
           <CartTotal />
@@ -210,21 +180,17 @@ const PlaceOrder = () => {
         <div className="mt-12">
           <Title text1={"PAYMENT"} text2={"METHOD"} />
 
-          {/* Payment method selection */}
           <div className="flex gap-3 flex-col lg:flex-row mt-5">
             {["stripe", "razorpay", "cod"].map((method) => (
-              <div
-                key={method}
+              <div key={method}
                 onClick={() => setPaymentMethod(method)}
                 className={`flex items-center gap-3 border p-2 px-3 cursor-pointer transition-colors ${
                   paymentMethod === method ? "border-green-500" : ""
                 }`}
               >
-                <p
-                  className={`min-w-3.5 h-3.5 border rounded-full ${
-                    paymentMethod === method ? "bg-green-500" : ""
-                  }`}
-                ></p>
+                <p className={`min-w-3.5 h-3.5 border rounded-full ${
+                  paymentMethod === method ? "bg-green-500" : ""
+                }`}></p>
                 <p className="text-sm font-medium text-gray-700">
                   {method === "cod" ? "CASH ON DELIVERY" : method.toUpperCase()}
                 </p>
