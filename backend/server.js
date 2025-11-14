@@ -11,35 +11,34 @@ import orderRouter from "./routes/orderRoute.js";
 import verifyRoute from "./routes/verifyRoute.js";
 
 const app = express();
-const PORT = process.env.PORT || 4000;
 
-// Connect services
+// Connect services once at cold start
 connectDB();
 connectCloudinary();
 
-// CORS MUST BE FIRST
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:5174"],
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "https://vwlsim-frontend.vercel.app",
+      "https://vwlsim-admin.vercel.app",
+    ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
   })
 );
 
-// Body parser
 app.use(express.json());
 
-// Routes
 app.use("/api/user", userRouter);
 app.use("/api/product", productRouter);
 app.use("/api/order", orderRouter);
 app.use("/api/cart", authUser, cartRouter);
 app.use("/verify", verifyRoute);
 
-// Health check
 app.get("/", (req, res) => {
   res.send("API WORKING");
 });
 
-// Start server
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+export default app; // IMPORTANT FOR VERCEL
